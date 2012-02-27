@@ -47,6 +47,13 @@ class Create extends \lithium\console\Command {
 	protected $_library = array();
 
 	/**
+	 * Contains the list of `Create` sub-commands.
+	 *
+	 * @var array
+	 */
+	protected $_commands = array();
+
+	/**
 	 * Class initializer. Parses template and sets up params that need to be filled.
 	 *
 	 * @return void
@@ -56,6 +63,16 @@ class Create extends \lithium\console\Command {
 		$this->library = $this->library ?: true;
 		$defaults = array('prefix' => null, 'path' => null);
 		$this->_library = (array) Libraries::get($this->library) + $defaults;
+		$commands = Libraries::locate('command.create');
+
+		$this->_commands = array_combine($commands, array_map(
+			function($cmd) {
+				return str_replace('_', '-', Inflector::underscore(
+					substr($cmd, strrpos($cmd, '\\') + 1)
+				));
+			},
+			$commands
+		));
 	}
 
 	/**
@@ -65,7 +82,7 @@ class Create extends \lithium\console\Command {
 	 * @return boolean
 	 */
 	public function run($command = null) {
-		if ($command && !$this->request->args()) {
+		if ($command && !in_array($command, $this->_commands)) {
 			return $this->_default($command);
 		}
 		$this->request->shift();
