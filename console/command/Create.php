@@ -11,6 +11,7 @@ namespace lithium\console\command;
 use lithium\util\String;
 use lithium\core\Libraries;
 use lithium\util\Inflector;
+use lithium\analysis\Inspector;
 use lithium\core\ClassNotFoundException;
 
 /**
@@ -40,6 +41,14 @@ class Create extends \lithium\console\Command {
 	public $template = null;
 
 	/**
+	 * Specifies the service location path of the sub-commands used to generate classes or other
+	 * files. Defaults to `'command.create'`.
+	 *
+	 * @var string
+	 */
+	public $commandPath = 'command.create';
+
+	/**
 	 * Holds library data from `lithium\core\Libraries::get()`.
 	 *
 	 * @var array
@@ -54,6 +63,18 @@ class Create extends \lithium\console\Command {
 	protected $_commands = array();
 
 	/**
+	 * List of commands to run when executing against a name rather than a command.
+	 *
+	 * @var array
+	 */
+	protected $_defaultCommands = array(
+		array('model'),
+		array('controller'),
+		array('test', 'model'),
+		array('test', 'controller')
+	);
+
+	/**
 	 * Class initializer. Parses template and sets up params that need to be filled.
 	 *
 	 * @return void
@@ -63,26 +84,26 @@ class Create extends \lithium\console\Command {
 		$this->library = $this->library ?: true;
 		$defaults = array('prefix' => null, 'path' => null);
 		$this->_library = (array) Libraries::get($this->library) + $defaults;
-		$commands = Libraries::locate('command.create');
+		$commands = Libraries::locate($this->commandPath);
 
-		$this->_commands = array_combine($commands, array_map(
-			function($cmd) {
-				return str_replace('_', '-', Inflector::underscore(
-					substr($cmd, strrpos($cmd, '\\') + 1)
-				));
-			},
-			$commands
-		));
+		$map = function($cmd) {
+			return str_replace('_', '-', Inflector::underscore(
+				substr($cmd, strrpos($cmd, '\\') + 1)
+			));
+		};
+		$this->_commands = array_combine($commands, array_map($map, $commands));
 	}
 
 	/**
 	 * Run the create command. Takes `$command` and delegates to `$command::$method`
 	 *
-	 * @param string $command
+	 * @param string $command The name of the command to run, which specifies what type of file to
+	 * generate. Available options can be determined by running the `generators`
+	 * command.
 	 * @return boolean
 	 */
 	public function run($command = null) {
-		if ($command && !in_array($command, $this->_commands)) {
+		if ($command && !in_array($command, $this->_commands) && !$this->request->args()) {
 			return $this->_default($command);
 		}
 		$this->request->shift();
@@ -96,6 +117,35 @@ class Create extends \lithium\console\Command {
 		}
 		$this->error("{$command} could not be created.");
 		return false;
+	}
+
+	/**
+	 * Lists the available generator commands that can be used to produce stub classes and files.
+	 *
+	 * @return boolean
+	 */
+	public function generators() {
+		$this->out('');
+		$this->out('Available console generators:');
+		$this->out('');
+
+		foreach ($this->_commands as $class => $title) {
+			$this->out("- {$title}");
+			$info = Inspector::info($class);
+
+			if ($info['description']) {
+				$this->out($info['description']);
+			}
+			if ($info['description'] && $info['text']) {
+				$this->out('');
+			}
+			if ($info['text']) {
+				$this->out($info['text']);
+			}
+			$this->out('');
+			$this->out('');
+		}
+		return true;
 	}
 
 	/**
@@ -133,13 +183,9 @@ class Create extends \lithium\console\Command {
 	 * @return boolean
 	 */
 	protected function _default($name) {
-		$commands = array(
-			array('model', Inflector::pluralize($name)),
-			array('controller', Inflector::pluralize($name)),
-			array('test', 'model', Inflector::pluralize($name)),
-			array('test', 'controller', Inflector::pluralize($name))
-		);
-		foreach ($commands as $args) {
+		foreach ($this->_defaultCommands as $args) {
+			array_push($args, Inflector::pluralize($name));
+
 			$command = $this->template = $this->request->params['command'] = array_shift($args);
 			$this->request->params['action'] = array_shift($args);
 			$this->request->params['args'] = $args;
@@ -158,7 +204,7 @@ class Create extends \lithium\console\Command {
 	 * @param array $options
 	 * @return string
 	 */
-	protected function _namespace($request, $options  = array()) {
+	protected function _namespace($request, $options = array()) {
 		$name = $request->command;
 		$defaults = array(
 			'prefix' => $this->_library['prefix'],
