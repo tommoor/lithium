@@ -161,6 +161,22 @@ class HelpTest extends \lithium\test\Unit {
 		$result = $help->response->output;
 		$this->assertPattern("/{$expected}/s", $result);
 	}
+
+	/**
+	 * Tests that the `Help` command prints a class' full description with all lines, not just the
+	 * first.
+	 */
+	public function testPrintFullClassDoc() {
+		$command = new Help(array(
+			'request' => $this->request, 'classes' => $this->classes
+		));
+
+		$this->assertTrue($command->run('Create'));
+		$lines = explode(PHP_EOL, $command->response->output);
+
+		$offset = array_search('DESCRIPTION', $lines);
+		$this->assertEqual('OPTIONS', $lines[$offset + 3]);
+	}
 }
 
 ?>

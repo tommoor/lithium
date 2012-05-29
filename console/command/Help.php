@@ -305,7 +305,7 @@ class Help extends \lithium\console\Command {
 	 */
 	protected function _renderDescription($info) {
 		$this->out('DESCRIPTION', 'heading');
-		$this->out($this->_pad(strtok($info['description'], "\n"), 1));
+		$this->out($this->_pad($info['description']), 1);
 	}
 
 	/**
