@@ -1,3 +1,8 @@
+In The Fork.
+---------------------------------------------
+
+This fork removes the requirement on the URL parameter in the core routing of Lithium. This allows url params to be used in the application query string if neccessary.
+
 You asked for a better framework. Here it is.
 ---------------------------------------------
 
